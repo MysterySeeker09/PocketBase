@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Giveaway Tracker</title>
+  <style>
+    :root {
+      --primary: #0066cc;
+      --primary-dark: #0052a3;
+      --success: #28a745;
+      --error: #dc3545;
+      --light: #f8f9fa;
+      --dark: #212529;
+      --gray: #6c757d;
+    }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--light);
+      color: var(--dark);
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .header {
+      width: 100%;
+      background: white;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      padding: 16px 0;
+      text-align: center;
+    }
+    .logo-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+    .logo-svg {
+      width: 48px;
+      height: 48px;
+      fill: var(--primary);
+    }
+    h1 {
+      margin: 0;
+      font-size: 1.6rem;
+      color: var(--primary);
+    }
+    .container {
+      max-width: 500px;
+      width: 100%;
+      padding: 32px 24px;
+    }
+    .card {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+      padding: 32px;
+      text-align: center;
+    }
+    input {
+      width: 100%;
+      padding: 16px;
+      font-size: 1.1rem;
+      border: 2px solid #dee2e6;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      transition: border-color 0.2s;
+    }
+    input:focus {
+      border-color: var(--primary);
+      outline: none;
+    }
+    button {
+      background: var(--primary);
+      color: white;
+      font-size: 1.15rem;
+      font-weight: 600;
+      padding: 16px 40px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover { background: var(--primary-dark); }
+    #result {
+      margin-top: 32px;
+      padding: 24px;
+      border-radius: 12px;
+      font-size: 1.1rem;
+      line-height: 1.6;
+      min-height: 100px;
+      transition: all 0.3s;
+    }
+    .success { background: #e8f5e9; color: #1b5e20; border: 1px solid #c8e6c9; }
+    .error   { background: #fde8e8; color: #b71c1c; border: 1px solid #ffcdd2; }
+    .loading { background: #fff3e0; color: #ef6c00; border: 1px solid #ffe0b2; }
+    .small { font-size: 0.95rem; color: var(--gray); margin-top: 8px; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo-container">
+    <svg class="logo-svg" viewBox="0 0 48 48">
+      <path d="M24 4C13.5 4 5 12.5 5 23c0 6.1 2.8 11.6 7.2 15.3L24 44l11.8-5.7C40.2 34.6 43 29.1 43 23c0-10.5-8.5-19-19-19z"/>
+    </svg>
+    <h1>Giveaway Tracker</h1>
+  </div>
+</div>
+
+<div class="container">
+  <div class="card">
+    <input type="text" id="trackingNumber" placeholder="Enter tracking number (e.g. TEST123)" autocomplete="off" />
+    <button onclick="checkStatus()">Check Status</button>
+
+    <div id="result"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/pocketbase@0.22.1/dist/pocketbase.umd.min.js"></script>
+
+<script>
+window.checkStatus = async function() {
+  const result = document.getElementById('result');
+  const code = document.getElementById('trackingNumber').value.trim().toUpperCase();
+
+  if (!code) {
+    result.innerHTML = '<div class="error">Please enter a tracking number</div>';
+    return;
+  }
+
+  result.innerHTML = '<div class="loading">Checking...</div>';
+
+  if (typeof PocketBase === 'undefined') {
+    result.innerHTML = '<div class="error">Connection error – make sure PocketBase is running</div>';
+    return;
+  }
+
+  const pb = new PocketBase('https://wilier-nonreigning-lois.ngrok-free.dev');
+
+  try {
+    const record = await pb.collection('shipments').getFirstListItem(
+      `tracking_number ~ "${code}"`
+    );
+
+    result.innerHTML = `
+      <div class="success">
+        <strong>Status:</strong> ${record.status || '—'}<br>
+        <strong>Details:</strong> ${record.details || 'No additional details'}<br>
+        <div class="small">Last updated: ${new Date(record.updated).toLocaleString()}</div>
+      </div>
+    `;
+  } catch (err) {
+    if (err.status === 404) {
+      result.innerHTML = '<div class="error">Tracking number not found</div>';
+    } else {
+      result.innerHTML = `<div class="error">Error: ${err.message || 'Cannot connect to tracker'}</div>`;
+      console.error('PocketBase error:', err);
+    }
+  }
+}
+
+// Press Enter to search
+document.getElementById('trackingNumber').addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') checkStatus();
+});
+</script>
+
+</body>
+</html>
